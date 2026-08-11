@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SVG World Map</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        p.subtitle {
+            color: #888;
+            margin-bottom: 25px;
+            font-size: 0.95rem;
+        }
+
+        .map-wrapper {
+            background-color: #242424;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 1000px;
+            position: relative;
+        }
+
+        /* SVG Target Container */
+        #svg-map-container {
+            width: 100%;
+            height: auto;
+        }
+
+        /* CSS Targeting for loaded SVG paths */
+        svg path {
+            fill: #3b4252;
+            stroke: #1a1a1a;
+            stroke-width: 0.7;
+            transition: fill 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+
+        /* Hover effect */
+        svg path:hover {
+            fill: #81a1c1;
+        }
+
+        /* Active Selected State */
+        svg path.active-country {
+            fill: #a3be8c;
+        }
+
+        /* Floating Tooltip styling */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: none;
+            border: 1px solid #4c566a;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transform: translate(-50%, -130%);
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* Information Bar Display */
+        #info-panel {
+            margin-top: 20px;
+            padding: 15px 25px;
+            background: #2e3440;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            min-width: 300px;
+            text-align: center;
+            border-bottom: 3px solid #88c0d0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive World Explorer</h1>
+    <p class="subtitle">Hover to identify regions, or click to lock selections</p>
+
+    <div class="map-wrapper" id="wrapper">
+        <div class="tooltip" id="map-tooltip"></div>
+        
+        <div id="svg-map-container">Loading vector graphics map...</div>
+    </div>
+
+    <div id="info-panel">No country selected</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('svg-map-container');
+            const tooltip = document.getElementById('map-tooltip');
+            const wrapper = document.getElementById('wrapper');
+            const infoPanel = document.getElementById('info-panel');
+
+            // 1. Fetch optimized, open-source world map SVG asset hosted publicly
+            // (Contains standard ISO IDs like id="US", id="BR" along with 'name' attributes)
+            fetch('https://raw.githubusercontent.com/leakyMirror/map-of-europe/master/GeoJSON/europe.svg') // Placeholder endpoint example — replace with direct global source if preferred
+            fetch('https://cdn.jsdelivr.net/npm/@svg-maps/world@1.0.1/world.svg')
+                .then(response => {
+                    if (!response.ok) throw new Error("Network map could not load properly.");
+                    return response.text();
+                })
+                .then(svgData => {
+                    // Inject raw SVG data into DOM tree
+                    container.innerHTML = svgData;
+                    setupMapInteractions();
+                })
+                .catch(err => {
+                    container.innerHTML = `<span style="color:red;">Failed to build map asset data: ${err.message}</span>`;
+                });
+
+            // 2. Bind application logic to paths once SVG exists inside DOM
+            function setupMapInteractions() {
+                const paths = container.querySelectorAll('svg path');
+
+                paths.forEach(path => {
+                    // Look for attributes common to world map vectors (name, data-name, or fallback to ID)
+                    const countryName = path.getAttribute('name') || path.getAttribute('data-name') || path.getAttribute('id') || "Unknown Territory";
+
+                    // --- Mouse Hover Interactions ---
+                    path.addEventListener('mousemove', (e) => {
+                        tooltip.textContent = countryName;
+                        tooltip.style.display = 'block';
+
+                        // Position tooltip relative to container wrapper metrics
+                        const rect = wrapper.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        
+                        tooltip.style.left = `${x}px`;
+                        tooltip.style.top = `${y}px`;
+                    });
+
+                    path.addEventListener('mouseleave', () => {
+                        tooltip.style.display = 'none';
+                    });
+
+                    // --- Click Action Logic ---
+                    path.addEventListener('click', function() {
+                        // Clear active classes from every other node path
+                        paths.forEach(p => p.classList.remove('active-country'));
+
+                        // Activate current targeted path
+                        this.classList.add('active-country');
+
+                        // Update dashboard panel
+                        const countryId = this.getAttribute('id') ? `(${this.getAttribute('id').toUpperCase()})` : '';
+                        infoPanel.innerHTML = `Focused Selection: <strong>${countryName} ${countryId}</strong>`;
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
